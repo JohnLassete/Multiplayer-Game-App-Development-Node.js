@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Tic-Tac-Toe</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        /* Style the game board and chat interface */
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #000;
+            font-size: 2rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Multiplayer Tic-Tac-Toe</h1>
+    <div>
+        <input type="text" id="username" placeholder="Enter your username">
+        <button id="join-btn">Join Game</button>
+    </div>
+
+    <div>
+        <h2>Game Room</h2>
+        <div id="game-board"></div>
+    </div>
+
+    <div>
+        <h2>Chat</h2>
+        <input type="text" id="chat-input" placeholder="Type a message">
+        <button id="send-chat">Send</button>
+        <div id="chat-box"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        let roomId = 'game-room-1';  // Hardcoded room for simplicity
+        let username = '';
+
+        // Join the game when the user submits their username
+        document.getElementById('join-btn').addEventListener('click', () => {
+            username = document.getElementById('username').value;
+            if (username) {
+                socket.emit('joinGame', { username, roomId });
+            }
+        });
+
+        // Handle game state updates
+        socket.on('gameState', (gameState) => {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';  // Clear the board
+
+            gameState.gameState.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                    const cellElem = document.createElement('div');
+                    cellElem.classList.add('cell');
+                    cellElem.textContent = cell;
+                    cellElem.addEventListener('click', () => makeMove(rowIndex, colIndex));
+                    board.appendChild(cellElem);
+                });
+            });
+        });
+
+        // Handle chat messages
+        document.getElementById('send-chat').addEventListener('click', () => {
+            const message = document.getElementById('chat-input').value;
+            if (message) {
+                socket.emit('chatMessage', { username, message });
+                document.getElementById('chat-input').value = '';
+            }
+        });
+
+        // Display messages in chat box
+        socket.on('message', (data) => {
+            const chatBox = document.getElementById('chat-box');
+            const messageElem = document.createElement('div');
+            messageElem.textContent = `${data.username}: ${data.message}`;
+            chatBox.appendChild(messageElem);
+        });
+
+        // Handle player moves
+        function makeMove(row, col) {
+            socket.emit('makeMove', {
+                roomId,
+                move: { row, col }
+            });
+        }
+
+        // Show error or invalid move messages
+        socket.on('message', (data) => {
+            if (data.username === 'Server') {
+                alert(data.message);  // Show server messages such as errors or notifications
+            }
+        });
+    </script>
+
+</body>
+
+</html>
